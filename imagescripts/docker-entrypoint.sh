@@ -31,6 +31,11 @@ if [ -n "${JIRA_ENV_FILE}" ]; then
   source ${JIRA_ENV_FILE}
 fi
 
+chown -R jira:jira /var/atlassian/jira
+chown -R jira:jira /opt/jira/
+chown -R jira:jira /usr/local/share/atlassian
+chown -R jira:jira /home/jira
+
 if [ -n "${JIRA_PROXY_NAME}" ]; then
   xmlstarlet ed -P -S -L --insert "//Connector[not(@proxyName)]" --type attr -n proxyName --value "${JIRA_PROXY_NAME}" ${JIRA_INSTALL}/conf/server.xml
 fi
@@ -69,13 +74,15 @@ TARGET_PROPERTY=4host-manager.org.apache.juli.AsyncFileHandler.directory
 sed -i "/${TARGET_PROPERTY}/d" ${JIRA_INSTALL}/conf/logging.properties
 echo "${TARGET_PROPERTY} = ${jira_logfile}" >> ${JIRA_INSTALL}/conf/logging.properties
 
+echo "using JIRA_USER">${JIRA_INSTALL}/bin/user.sh
+
 if [ "$1" = 'jira' ] || [ "${1:0:1}" = '-' ]; then
   waitForDB
   /bin/bash ${JIRA_SCRIPTS}/launch.sh
   if [ -n "${JIRA_PROXY_PATH}" ]; then
     xmlstarlet ed -P -S -L --update "//Context/@path" --value "${JIRA_PROXY_PATH}" ${JIRA_INSTALL}/conf/server.xml
   fi
-  exec ${JIRA_INSTALL}/bin/start-jira.sh -fg "$@"
+  exec gosu jira ${JIRA_INSTALL}/bin/start-jira.sh -fg "$@"
 else
-  exec "$@"
+  exec gosu jira "$@"
 fi
